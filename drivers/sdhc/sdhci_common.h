@@ -17,6 +17,7 @@
  * - Only SDHC Specification Version 3.0
  * - PIO transfers
  * - SDMA transfers
+ * - ADMA2 transfers (32-bits)
  * - SD card specification only
  * - SDHC reset
  * - SDCLK clock frequency configuration
@@ -27,7 +28,6 @@
  * Limitations
  * - no tuning support
  * - SDR50 may work, without tuning
- * - no ADMA support
  * - only polling xfer verified
  * - no presets support
  */
@@ -56,10 +56,12 @@
 #define SDHCI_HOST_CONTROL2   0x3E /* 16bit */
 #define SDHCI_CAPABILITIES    0x40 /* 32bit */
 #define SDHCI_CAPABILITIES_1  0x44 /* 32bit */
+#define SDHCI_ADMA_ADDRESS    0x58 /* 32bit */
 #define SDHCI_HOST_VERSION    0xFE /* 16bit */
 
 /* SDHCI_BLOCK_SIZE */
 #define SDHCI_DEFAULT_BOUNDARY_ARG             (0x7)
+#define SDHC_SDMA_XFER_MAX                     ((1 << SDHCI_DEFAULT_BOUNDARY_ARG) * 4096)
 #define SDHCI_MAKE_BLKSZ(sdma_boundary, blksz) ((((sdma_boundary) & 0x7) << 12) | ((blksz) & 0xFFF))
 
 /* SDHCI_TRANSFER_MODE */
@@ -115,9 +117,10 @@
 #define SDHCI_CTRL_LED         BIT(0)
 #define SDHCI_CTRL_4BITBUS     BIT(1)
 #define SDHCI_CTRL_HISPD       BIT(2)
+#define SDHCI_CTRL_DMA_SHIFT   3
 #define SDHCI_CTRL_DMA_MASK    GENMASK(4, 3)
 #define SDHCI_CTRL_SDMA        0x0
-#define SDHCI_CTRL_ADMA32      0x2
+#define SDHCI_CTRL_ADMA2       0x2
 #define SDHCI_CTRL_8BITBUS     BIT(5)
 #define SDHCI_CTRL_CD_TEST_INS BIT(6)
 #define SDHCI_CTRL_CD_TEST     BIT(7)
@@ -225,6 +228,25 @@
 #define SDHCI_SPEC_300         2
 #define SDHCI_SPEC_400         3
 
+/* ADMA2 descriptor */
+#define SDHC_ADMA_DESC_VALID      BIT(0)
+#define SDHC_ADMA_DESC_END        BIT(1)
+#define SDHC_ADMA_DESC_INT        BIT(2)
+#define SDHC_ADMA_DESC_ACT1       BIT(4)
+#define SDHC_ADMA_DESC_ACT2       BIT(5)
+#define SDHC_ADMA_DESC_ACT_NOP    0
+#define SDHC_ADMA_DESC_ACT_RSV    SDHC_ADMA_DESC_ACT1
+#define SDHC_ADMA_DESC_ACT_TRAN   SDHC_ADMA_DESC_ACT2
+#define SDHC_ADMA_DESC_ACT_LINK   SDHC_ADMA_DESC_ACT2 | SDHC_ADMA_DESC_ACT1
+
+#define SDHC_ADMA_DESC_MAX_LEN 65532
+
+struct sdhc_adma_desc {
+	uint16_t	cmd;
+	uint16_t	len;
+	uint32_t	addr;
+}  __packed __aligned(4);
+
 /**
  * @brief SDHC DMA type selection codes.
  *
@@ -253,6 +275,8 @@ struct sdhci_common {
 	bool f_auto_cmd12; /* flag to Auto CMD12 Enable */
 	bool f_use_dma; /* flag to enable DMA */
 	enum sdhc_dma_select dma_mode; /* selected DMA mode */
+	struct sdhc_adma_desc *adma_descs; /* SDHC ADMA desc table */
+	uint32_t adma_descs_num; /* SDHC ADMA desc table size */
 	/** @endcond */
 };
 
@@ -272,18 +296,34 @@ struct sdhci_common {
 int sdhci_init_caps(struct sdhci_common *sdhci_ctx, struct sdhc_host_props *props);
 
 /**
- * @brief Enable SDHC DMA.
+ * @brief Enable SDHC SDMA.
  *
- * Enables SDHC DMA and selects desired DMA mode.
+ * Enables SDHC SDMA.
  * The SDHC drivers should call this API after @ref sdhci_init_caps.
  *
  * @param sdhci_ctx: SDHC data context.
- * @param dma_mode: SDHC DMA mode.
  *
  * @retval 0 reset succeeded.
- * @retval -ENOTSUP: SDHC HW is not supported.
  */
-int sdhci_enable_dma(struct sdhci_common *sdhci_ctx, enum sdhc_dma_select dma_mode);
+int sdhci_enable_sdma(struct sdhci_common *sdhci_ctx);
+
+/**
+ * @brief Enable SDHC ADMA2.
+ *
+ * Enables SDHC ADMA2. The consumer should provide SDHC with preallocated table
+ * of ADMA2 descriptors. The @ref descs_table should be allocated with @ref __nocache attribute
+ * if nocache memory is supported by platform.
+ * The SDHC drivers should call this API after @ref sdhci_init_caps.
+ *
+ * @param sdhci_ctx: SDHC data context.
+ * @param descs_table: ADMA2 descriptors table.
+ * @param descs_table_size: ADMA2 descriptors table size.
+ *
+ * @retval 0 reset succeeded.
+ * @retval -EINVAL: ADMA2 descriptors table is invalid.
+ */
+int sdhci_enable_adma2(struct sdhci_common *sdhci_ctx, struct sdhc_adma_desc *descs_table,
+		       uint32_t descs_table_size);
 
 /**
  * @brief Enable SDHC auto CMD12 functionality.
