@@ -55,7 +55,7 @@ if(CONFIG_NETWORKING)
 endif()
 
 if(CONFIG_ARM_SCMI)
-  zephyr_iterable_section(NAME scmi_protocol GROUP DATA_REGION ${XIP_ALIGN_WITH_INPUT} SUBALIGN CONFIG_LINKER_ITERABLE_SUBALIGN)
+  zephyr_iterable_section(NAME scmi_protocol GROUP DATA_REGION ${XIP_ALIGN_WITH_INPUT} SUBALIGN 4)
 endif()
 
 if(CONFIG_SENSING)
