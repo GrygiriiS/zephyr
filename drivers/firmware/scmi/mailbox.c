@@ -49,10 +49,16 @@ static int scmi_mbox_read_message(const struct device *transport,
 				  struct scmi_message *msg)
 {
 	struct scmi_mbox_channel *mbox_chan;
+	int ret;
 
 	mbox_chan = chan->data;
 
-	return scmi_shmem_read_message(mbox_chan->shmem, msg);
+	ret = scmi_shmem_read_message(mbox_chan->shmem, msg);
+	if (!ret && msg->status != SCMI_SUCCESS) {
+		return scmi_status_to_errno(msg->status);
+	}
+
+	return ret;
 }
 
 static bool scmi_mbox_channel_is_free(const struct device *transport,
