@@ -84,6 +84,21 @@ enum scmi_status_code {
 };
 
 /**
+ * @brief SCMI protocol version
+ *
+ * Protocol versioning uses a 32-bit unsigned integer, where
+ * - the upper 16 bits are the major revision;
+ * - the lower 16 bits are the minor revision.
+ *
+ */
+struct scmi_protocol_version {
+	/** major protocol revision */
+	uint16_t minor;
+	/** minor protocol revision */
+	uint16_t major;
+};
+
+/**
  * @struct scmi_protocol
  *
  * @brief SCMI protocol structure
@@ -136,5 +151,18 @@ int scmi_status_to_errno(int scmi_status);
  */
 int scmi_send_message(struct scmi_protocol *proto,
 		      struct scmi_message *msg, struct scmi_message *reply);
+
+/**
+ * @brief Get SCMI protocol version
+ *
+ * Generic function to get SCMI protocol version which is common operation for all protocols.
+ *
+ * @param proto pointer to SCMI protocol
+ * @param ver pointer to SCMI protocol version structure
+ *
+ * @retval 0 if successful
+ * @retval negative errno on failure
+ */
+int scmi_core_get_version(struct scmi_protocol *proto, struct scmi_protocol_version *ver);
 
 #endif /* _INCLUDE_ZEPHYR_DRIVERS_FIRMWARE_SCMI_PROTOCOL_H_ */
