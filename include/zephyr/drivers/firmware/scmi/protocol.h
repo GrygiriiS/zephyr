@@ -17,6 +17,25 @@
 #include <stdint.h>
 #include <errno.h>
 
+#define SCMI_MAX_STR_SIZE        64
+#define SCMI_SHORT_NAME_MAX_SIZE 16
+
+/**
+ * @brief SCMI message header definitions
+ */
+#define SCMI_MSG_ID_MASK             GENMASK(7, 0)
+#define SCMI_MSG_XTRACT_ID(hdr)      (uint8_t)FIELD_GET(SCMI_MSG_ID_MASK, (hdr))
+#define SCMI_MSG_TYPE_MASK           GENMASK(9, 8)
+#define SCMI_MSG_XTRACT_TYPE(hdr)    (uint8_t)FIELD_GET(SCMI_MSG_TYPE_MASK, (hdr))
+#define SCMI_MSG_TYPE_COMMAND        0
+#define SCMI_MSG_TYPE_DELAYED_RESP   2
+#define SCMI_MSG_TYPE_NOTIFICATION   3
+#define SCMI_MSG_PROTOCOL_ID_MASK    GENMASK(17, 10)
+#define SCMI_MSG_XTRACT_PROT_ID(hdr) (uint8_t)FIELD_GET(SCMI_MSG_PROTOCOL_ID_MASK, (hdr))
+#define SCMI_MSG_TOKEN_ID_MASK       GENMASK(27, 18)
+#define SCMI_MSG_XTRACT_TOKEN(hdr)   (uint16_t)FIELD_GET(SCMI_MSG_TOKEN_ID_MASK, (hdr))
+#define SCMI_MSG_TOKEN_MAX           (SCMI_MSG_XTRACT_TOKEN(SCMI_MSG_TOKEN_ID_MASK) + 1)
+
 /**
  * @brief Build an SCMI message header
  *
@@ -28,11 +47,9 @@
  * @param proto protocol ID
  * @param token message token
  */
-#define SCMI_MESSAGE_HDR_MAKE(id, type, proto, token)	\
-	(SCMI_FIELD_MAKE(id, GENMASK(7, 0), 0)     |	\
-	 SCMI_FIELD_MAKE(type, GENMASK(1, 0), 8)   |	\
-	 SCMI_FIELD_MAKE(proto, GENMASK(7, 0), 10) |	\
-	 SCMI_FIELD_MAKE(token, GENMASK(9, 0), 18))
+#define SCMI_MESSAGE_HDR_MAKE(id, type, proto, token)                                              \
+	(FIELD_PREP(SCMI_MSG_ID_MASK, id) | FIELD_PREP(SCMI_MSG_TYPE_MASK, type) |                 \
+	 FIELD_PREP(SCMI_MSG_PROTOCOL_ID_MASK, proto) | FIELD_PREP(SCMI_MSG_TOKEN_ID_MASK, token))
 
 struct scmi_channel;
 
